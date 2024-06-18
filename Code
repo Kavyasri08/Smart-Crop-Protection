@@ -1,0 +1,152 @@
+#include "stm32f10x.h"
+#include <math.h>
+
+// Function prototypes
+void GPIO_Config(void);
+void Camera_Config(void);
+void capture_image(void);
+float logistic_regression(float length, float height, float width);
+void trigger_buzzer(void);
+void delay(uint32_t time);
+
+int main(void)
+{
+    // Configure GPIO
+    GPIO_Config();
+
+    // Configure Camera
+    Camera_Config();
+
+    while (1)
+    {
+        // Check if PIR sensor detects motion
+        if (GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_0) == Bit_SET)
+        {
+            // Motion detected, capture image
+            capture_image();
+
+            // Example dimensions from captured image (length, height, width)
+            float length = 2.5;
+            float height = 5.5;
+            float width = 1.8;
+
+            // Perform logistic regression
+            float result = logistic_regression(length, height, width);
+
+            // Check if the result indicates the presence of an animal
+            if (result > 0.5)
+            {
+                // Animal detected, trigger buzzer
+                trigger_buzzer();
+            }
+        }
+        else
+        {
+            // No motion detected, ensure buzzer is off
+            GPIO_ResetBits(GPIOB, GPIO_Pin_1);
+        }
+    }
+}
+
+void GPIO_Config(void)
+{
+    // Initialize structures
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    // Enable clocks for GPIOB and GPIOC
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC, ENABLE);
+
+    // Configure PB0 as input (PIR sensor)
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+    // Configure PB1 as output (Buzzer)
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+    // Configure PC0-PC7 as input (Camera data lines)
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 |
+                                  GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    GPIO_Init(GPIOC, &GPIO_InitStructure);
+    
+    // Additional camera control pins
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+}
+
+void Camera_Config(void)
+{
+    // Example configuration for a generic camera module
+    // Configure the camera control lines and interface
+
+    // Initialize structures
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    // Enable clock for GPIOA
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+
+    // Configure PA8 as output (Camera Reset)
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    // Reset the camera
+    GPIO_ResetBits(GPIOA, GPIO_Pin_8);
+    delay(10);
+    GPIO_SetBits(GPIOA, GPIO_Pin_8);
+    delay(10);
+
+    // Further configuration such as I2C/SPI communication setup
+    // based on the camera's datasheet would go here.
+}
+
+void capture_image(void)
+{
+    // Placeholder logic for capturing an image from the camera
+    // In a real implementation, you would interface with the camera module,
+    // retrieve the image data, and process it as required.
+
+    // Example: Trigger camera capture and read data from GPIOC (PC0-PC7)
+    // This is a simplified placeholder; actual implementation depends on the camera module
+    uint8_t image_data[8];
+    for (int i = 0; i < 8; i++)
+    {
+        image_data[i] = GPIO_ReadInputDataBit(GPIOC, (1 << i));
+    }
+
+    // Process image data as needed
+}
+
+float logistic_regression(float length, float height, float width)
+{
+    // Model parameters (example values)
+    float coefficients[3] = {0.5, 1.0, -0.2};
+    float intercept = -0.4;
+
+    // Calculate linear combination
+    float linear_combination = coefficients[0] * length + coefficients[1] * height + coefficients[2] * width + intercept;
+
+    // Apply sigmoid function
+    float result = 1 / (1 + exp(-linear_combination));
+
+    return result;
+}
+
+void trigger_buzzer(void)
+{
+    // Turn on the buzzer
+    GPIO_SetBits(GPIOB, GPIO_Pin_1);
+    delay(1000); // Buzzer on for 1 second
+    GPIO_ResetBits(GPIOB, GPIO_Pin_1);
+}
+
+void delay(uint32_t time)
+{
+    // Simple delay function
+    for (uint32_t i = 0; i < time * 1000; i++);
+}
